@@ -1,0 +1,109 @@
+mql5
+//+------------------------------------------------------------------+
+//|                                              RT SyncChart.mq5    |
+//|                               Copyright 2022, Forex Robot Easy Team |
+//|                                              https://forexroboteasy.com |
+//+------------------------------------------------------------------+
+#property version   '1.00'
+#property strict
+#property indicator_chart_window
+
+//+------------------------------------------------------------------+
+//| Global variables                                                  |
+//+------------------------------------------------------------------+
+input string SyncSymbol = 'EURUSD';  // Symbol to sync across charts
+input ENUM_TIMEFRAMES SyncTimeframe = PERIOD_H1;  // Timeframe to sync across charts
+
+//+------------------------------------------------------------------+
+//| Custom indicator initialization function                         |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    // Sync all charts to display the same symbol
+    ChartSetSymbolPeriod(0, SyncSymbol, SyncTimeframe);
+
+    // Loop through all open charts and sync them
+    for (int i = 1; i < ChartGetInteger(0, CHARTS_TOTAL); i++)
+    {
+        ChartSetSymbolPeriod(i, SyncSymbol, SyncTimeframe);
+    }
+
+    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Custom indicator deinitialization function                       |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+    // Reset symbol and timeframe for all charts
+    for (int i = 0; i < ChartGetInteger(0, CHARTS_TOTAL); i++)
+    {
+        ChartSetSymbolPeriod(i, '', 0);
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Custom indicator iteration function                              |
+//+------------------------------------------------------------------+
+void OnCalculate(const int rates_total,
+                 const int prev_calculated,
+                 const datetime &time[],
+                 const double &open[],
+                 const double &high[],
+                 const double &low[],
+                 const double &close[],
+                 const long &tick_volume[],
+                 const long &volume[],
+                 const int &spread[])
+{
+    // Perform symbol monitoring and analysis
+    for (int i = 0; i < rates_total; i++)
+    {
+        // Add your analysis logic here
+        // Example: Calculate moving average
+        double ma = iMA(NULL, 0, 14, 0, MODE_SMA, PRICE_CLOSE, i);
+        
+        // Display moving average on all synced charts
+        for (int j = 0; j < ChartGetInteger(0, CHARTS_TOTAL); j++)
+        {
+            ObjectCreate(j, 'MA', OBJ_TREND, 0, time[i], ma, time[i+1], ma);
+            ObjectSetInteger(j, 'MA', OBJPROP_COLOR, clrRed);
+        }
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Custom event handling function                                   |
+//+------------------------------------------------------------------+
+void OnChartEvent(const int id,
+                  const long &lparam,
+                  const double &dparam,
+                  const string &sparam)
+{
+    // Handle drawing object synchronization
+    if (id == CHARTEVENT_OBJECT_CREATE)
+    {
+        // Sync created object across all charts
+        for (int i = 0; i < ChartGetInteger(0, CHARTS_TOTAL); i++)
+        {
+            ObjectCreate(i, sparam, OBJ_TREND, 0, time[lparam], dparam, time[lparam+1], dparam);
+        }
+    }
+    else if (id == CHARTEVENT_OBJECT_CHANGE)
+    {
+        // Sync modified object across all charts
+        for (int i = 0; i < ChartGetInteger(0, CHARTS_TOTAL); i++)
+        {
+            ObjectMove(i, sparam, 0, time[lparam], dparam);
+        }
+    }
+    else if (id == CHARTEVENT_OBJECT_DELETE)
+    {
+        // Sync deleted object across all charts
+        for (int i = 0; i < ChartGetInteger(0, CHARTS_TOTAL); i++)
+        {
+            ObjectDelete(i, sparam);
+        }
+    }
+}
